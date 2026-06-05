@@ -1,0 +1,5 @@
+.git
+.gitignore
+backend/__pycache__
+backend/.env
+**/__pycache__
