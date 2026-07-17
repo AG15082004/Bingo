@@ -7,30 +7,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 # Initialize logger
-import collections
-class MemoryHandler(logging.Handler):
-    def __init__(self, capacity=200):
-        super().__init__()
-        self.buffer = collections.deque(maxlen=capacity)
-    def emit(self, record):
-        self.buffer.append(self.format(record))
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
-
-memory_handler = MemoryHandler()
-memory_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
-logging.getLogger().addHandler(memory_handler)
 
 app = FastAPI(title="Real-Time Multiplayer Bingo")
 
 # Import our managers and helper tools
 from game_manager import game_manager, serialize_room
 from websocket_manager import manager
-
-@app.get("/api/logs")
-async def get_logs():
-    return list(memory_handler.buffer)
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(CURRENT_DIR, "static")
