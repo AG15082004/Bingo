@@ -15,12 +15,12 @@ def generate_card() -> Tuple[List[List[Union[int, str]]], List[List[bool]]]:
     """
     Generates a randomized Bingo card conforming to B-I-N-G-O column ranges.
     Returns:
-        matrix: 5x5 list of numbers (with "FREE" in center)
-        marked: 5x5 list of booleans (with True for the FREE space, False elsewhere)
+        matrix: 5x5 list of numbers
+        marked: 5x5 list of booleans (False everywhere initially)
     """
     B_nums = random.sample(range(CARD_RANGES["B"][0], CARD_RANGES["B"][1] + 1), 5)
     I_nums = random.sample(range(CARD_RANGES["I"][0], CARD_RANGES["I"][1] + 1), 5)
-    N_nums = random.sample(range(CARD_RANGES["N"][0], CARD_RANGES["N"][1] + 1), 4) # 4 numbers for N (excluding FREE)
+    N_nums = random.sample(range(CARD_RANGES["N"][0], CARD_RANGES["N"][1] + 1), 5) # 5 numbers for N
     G_nums = random.sample(range(CARD_RANGES["G"][0], CARD_RANGES["G"][1] + 1), 5)
     O_nums = random.sample(range(CARD_RANGES["O"][0], CARD_RANGES["O"][1] + 1), 5)
 
@@ -40,13 +40,8 @@ def generate_card() -> Tuple[List[List[Union[int, str]]], List[List[bool]]]:
         row_marks.append(False)
 
         # Column 2: N
-        if r == 2:
-            row_vals.append("FREE")
-            row_marks.append(True) # FREE space is automatically marked
-        else:
-            idx = r if r < 2 else r - 1
-            row_vals.append(N_nums[idx])
-            row_marks.append(False)
+        row_vals.append(N_nums[r])
+        row_marks.append(False)
 
         # Column 3: G
         row_vals.append(G_nums[r])
@@ -61,47 +56,89 @@ def generate_card() -> Tuple[List[List[Union[int, str]]], List[List[bool]]]:
 
     return matrix, marked
 
-def check_win(marked: List[List[bool]]) -> Optional[Dict]:
+def count_completed_lines(marked: List[List[bool]]) -> int:
     """
-    Checks if a 5x5 marked grid contains any winning pattern (row, column, or diagonal).
-    Returns a dict with winning details if found, otherwise None.
+    Counts the number of completed lines (rows, columns, diagonals).
     """
-    # 1. Check rows
+    lines = 0
+    # Rows
     for r in range(5):
         if all(marked[r][c] for c in range(5)):
-            return {
-                "won": True,
-                "type": "row",
-                "index": r,
-                "cells": [[r, c] for c in range(5)]
-            }
-
-    # 2. Check columns
+            lines += 1
+    # Columns
     for c in range(5):
         if all(marked[r][c] for r in range(5)):
-            return {
-                "won": True,
-                "type": "column",
-                "index": c,
-                "cells": [[r, c] for r in range(5)]
-            }
-
-    # 3. Check Left Diagonal (Top-Left to Bottom-Right)
+            lines += 1
+    # Diagonals
     if all(marked[i][i] for i in range(5)):
-        return {
-            "won": True,
-            "type": "diagonal",
-            "index": 0,  # Left diagonal
-            "cells": [[i, i] for i in range(5)]
-        }
-
-    # 4. Check Right Diagonal (Top-Right to Bottom-Left)
+        lines += 1
     if all(marked[i][4 - i] for i in range(5)):
+        lines += 1
+    return lines
+
+def get_completed_lines_info(marked: List[List[bool]]) -> dict:
+    """
+    Finds all completed lines and their cell coordinates.
+    Returns a dictionary with count of lines and list of cells belonging to completed lines.
+    """
+    completed_rows = []
+    completed_cols = []
+    diag1 = False
+    diag2 = False
+
+    for r in range(5):
+        if all(marked[r][c] for c in range(5)):
+            completed_rows.append(r)
+
+    for c in range(5):
+        if all(marked[r][c] for r in range(5)):
+            completed_cols.append(c)
+
+    if all(marked[i][i] for i in range(5)):
+        diag1 = True
+
+    if all(marked[i][4 - i] for i in range(5)):
+        diag2 = True
+
+    # Count
+    completed_count = len(completed_rows) + len(completed_cols) + (1 if diag1 else 0) + (1 if diag2 else 0)
+
+    # Collect cells to highlight
+    cells = []
+    for r in completed_rows:
+        for c in range(5):
+            if [r, c] not in cells:
+                cells.append([r, c])
+    for c in completed_cols:
+        for r in range(5):
+            if [r, c] not in cells:
+                cells.append([r, c])
+    if diag1:
+        for i in range(5):
+            if [i, i] not in cells:
+                cells.append([i, i])
+    if diag2:
+        for i in range(5):
+            if [i, 4 - i] not in cells:
+                cells.append([i, 4 - i])
+
+    return {
+        "count": completed_count,
+        "cells": cells
+    }
+
+def check_win(marked: List[List[bool]]) -> Optional[Dict]:
+    """
+    Checks if a 5x5 marked grid contains 5 or more completed lines.
+    Returns a dict with winning details if found, otherwise None.
+    """
+    info = get_completed_lines_info(marked)
+    if info["count"] >= 5:
         return {
             "won": True,
-            "type": "diagonal",
-            "index": 1,  # Right diagonal
-            "cells": [[i, 4 - i] for i in range(5)]
+            "type": "multiple",
+            "index": 0,
+            "cells": info["cells"]
         }
-
     return None
+

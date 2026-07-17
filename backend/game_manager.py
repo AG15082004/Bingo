@@ -4,7 +4,7 @@ import random
 import string
 import logging
 from typing import Dict, List, Optional, Union
-from bingo import generate_card, check_win
+from bingo import generate_card, check_win, count_completed_lines
 from websocket_manager import manager
 from models import GameRoomModel, PlayerModel, BingoCardModel, ChatMessageModel
 
@@ -22,7 +22,8 @@ def serialize_room(room) -> dict:
             name=p.name,
             card=BingoCardModel(matrix=p.card["matrix"], marked=p.card["marked"]),
             is_host=p.is_host,
-            is_connected=p.is_connected
+            is_connected=p.is_connected,
+            completed_lines=p.completed_lines
         )
     
     room_model = GameRoomModel(
@@ -37,7 +38,10 @@ def serialize_room(room) -> dict:
         chat_history=[ChatMessageModel(**c) for c in room.chat_history],
         draw_interval=room.draw_interval,
         total_calls=room.total_calls,
-        duration=room.duration
+        duration=room.duration,
+        turn_order=room.turn_order,
+        current_turn_player_id=room.current_turn_player_id,
+        leaderboard=room.leaderboard
     )
     return room_model.model_dump()
 
@@ -47,6 +51,7 @@ class Player:
         self.name = name
         self.is_host = is_host
         self.is_connected = True
+        self.completed_lines = 0
         
         # Card generation (server-side, randomized)
         matrix, marked = generate_card()
@@ -62,6 +67,7 @@ class Player:
             "matrix": matrix,
             "marked": marked
         }
+        self.completed_lines = 0
 
     def to_dict(self):
         return {
@@ -69,7 +75,8 @@ class Player:
             "name": self.name,
             "card": self.card,
             "is_host": self.is_host,
-            "is_connected": self.is_connected
+            "is_connected": self.is_connected,
+            "completed_lines": self.completed_lines
         }
 
 class GameRoom:
@@ -88,6 +95,9 @@ class GameRoom:
         self.started_at: Optional[float] = None
         self.last_draw_time: Optional[float] = None
         self.duration = 0.0
+        self.turn_order: List[str] = []
+        self.current_turn_player_id: Optional[str] = None
+        self.leaderboard: List[dict] = []
         
         # Background task references
         self.game_task: Optional[asyncio.Task] = None
@@ -106,7 +116,10 @@ class GameRoom:
             "chat_history": self.chat_history,
             "draw_interval": self.draw_interval,
             "total_calls": self.total_calls,
-            "duration": self.duration
+            "duration": self.duration,
+            "turn_order": self.turn_order,
+            "current_turn_player_id": self.current_turn_player_id,
+            "leaderboard": self.leaderboard
         }
 
 class GameManager:
@@ -168,6 +181,35 @@ class GameManager:
         logger.info(f"Player {player_name} ({player_id}) joined Room {room.code}")
         return player
 
+    def advance_turn(self, room: GameRoom):
+        """Advances current_turn_player_id to the next connected player in turn_order."""
+        if not room.turn_order:
+            room.current_turn_player_id = None
+            return
+
+        current_player_id = room.current_turn_player_id
+        if current_player_id not in room.turn_order:
+            for pid in room.turn_order:
+                if room.players.get(pid) and room.players[pid].is_connected:
+                    room.current_turn_player_id = pid
+                    return
+            room.current_turn_player_id = None
+            return
+
+        curr_idx = room.turn_order.index(current_player_id)
+        for i in range(1, len(room.turn_order) + 1):
+            candidate_idx = (curr_idx + i) % len(room.turn_order)
+            candidate_id = room.turn_order[candidate_idx]
+            if room.players.get(candidate_id) and room.players[candidate_id].is_connected:
+                room.current_turn_player_id = candidate_id
+                return
+        
+        # If no other connected players, keep the current player if they are connected
+        if room.players.get(current_player_id) and room.players[current_player_id].is_connected:
+            room.current_turn_player_id = current_player_id
+        else:
+            room.current_turn_player_id = None
+
     async def handle_player_disconnect(self, room_code: str, player_id: str):
         """Flags a player as disconnected. Triggers clean-up if room becomes abandoned."""
         room = self.get_room(room_code)
@@ -178,6 +220,10 @@ class GameManager:
         if player:
             player.is_connected = False
             logger.info(f"Player {player.name} in Room {room.code} marked disconnected")
+            
+            # If playing and it was their turn, advance the turn to someone else
+            if room.state == "playing" and room.current_turn_player_id == player_id:
+                self.advance_turn(room)
             
             # Broadcast player disconnection event
             await manager.broadcast_to_room(room.code, {
@@ -196,11 +242,19 @@ class GameManager:
         if not room:
             return
             
-        player = room.players.pop(player_id, None)
+        # Reassign host if the host left
+        player = room.players.get(player_id)
         if player:
+            # Advance turn first if it was their turn
+            if room.state == "playing" and room.current_turn_player_id == player_id:
+                self.advance_turn(room)
+                
+            if player_id in room.turn_order:
+                room.turn_order.remove(player_id)
+                
+            room.players.pop(player_id, None)
             logger.info(f"Player {player.name} explicitly left Room {room.code}")
             
-            # Reassign host if the host left
             if player.is_host and room.players:
                 next_host_id = list(room.players.keys())[0]
                 room.players[next_host_id].is_host = True
@@ -242,26 +296,14 @@ class GameManager:
                 self.remove_room(room_code)
                 await manager.broadcast_to_room(room_code, {"event": "room_deleted"})
 
-    def start_game(self, room_code: str):
-        """Starts the drawing thread for a room."""
+    async def start_game(self, room_code: str):
+        """Starts the turn-based game room."""
         room = self.get_room(room_code)
         if not room:
             return
             
         if room.state == "playing":
             return  # Already playing
-            
-        if room.game_task and not room.game_task.done():
-            room.game_task.cancel()
-            
-        # Spawn draw loop task
-        room.game_task = asyncio.create_task(self._draw_number_loop(room.code))
-
-    async def _draw_number_loop(self, room_code: str):
-        """Automatic draw loop running in the background."""
-        room = self.get_room(room_code)
-        if not room:
-            return
             
         # Reset game states
         room.draw_history = []
@@ -270,94 +312,118 @@ class GameManager:
         room.winners = []
         room.winning_pattern = None
         room.started_at = time.time()
-        room.last_draw_time = time.time()
+        room.duration = 0.0
+        room.leaderboard = []
         
-        # Set up numbers pool (1 to 75)
-        numbers_pool = list(range(1, 76))
-        random.shuffle(numbers_pool)
-        
-        # Reset all player cards
+        # Reset all player cards and lines
         for p in room.players.values():
             p.reset_card()
             
+        # Establish turn order with connected players
+        pids = [pid for pid, p in room.players.items() if p.is_connected]
+        if not pids:
+            pids = list(room.players.keys())
+            
+        random.shuffle(pids)
+        room.turn_order = pids
+        room.current_turn_player_id = pids[0] if pids else None
+        
         await manager.broadcast_to_room(room.code, {
             "event": "game_started",
             "room": serialize_room(room)
         })
+
+    async def select_number(self, room_code: str, player_id: str, number: int):
+        """Marks the selected number on all players' cards and advances turn or detects winner."""
+        room = self.get_room(room_code)
+        if not room or room.state != "playing":
+            return
+            
+        if room.current_turn_player_id != player_id:
+            logger.warning(f"Player {player_id} tried to play out of turn.")
+            return
+            
+        if number in room.draw_history:
+            logger.warning(f"Number {number} has already been selected.")
+            return
+            
+        # Cross number on all players' boards and update completed lines
+        for p in room.players.values():
+            for r in range(5):
+                for c in range(5):
+                    if p.card["matrix"][r][c] == number:
+                        p.card["marked"][r][c] = True
+            p.completed_lines = count_completed_lines(p.card["marked"])
+            
+        room.current_draw = number
+        room.draw_history.append(number)
+        room.total_calls = len(room.draw_history)
         
-        try:
-            # Loop until game is won or we run out of numbers
-            while room.state == "playing" and numbers_pool:
-                # Wait 5 seconds (or configured interval)
-                # Sleep in small ticks so we can cancel quickly if players leave
-                room.last_draw_time = time.time()
-                interval = room.draw_interval
-                
-                # Check for cancellations every 100ms
-                for _ in range(int(interval * 10)):
-                    if room.state != "playing":
-                        return
-                    await asyncio.sleep(0.1)
-                
-                # Double check room is still active
-                if room.state != "playing":
-                    return
+        # Check if anyone has won
+        winners = []
+        winning_pattern = None
+        for p in room.players.values():
+            win_details = check_win(p.card["marked"])
+            if win_details:
+                winners.append(p.name)
+                if not winning_pattern:
+                    winning_pattern = {
+                        "player_name": p.name,
+                        "type": win_details["type"],
+                        "index": win_details["index"],
+                        "cells": win_details["cells"]
+                    }
                     
-                # Draw number
-                drawn = numbers_pool.pop()
-                room.current_draw = drawn
-                room.draw_history.append(drawn)
-                room.total_calls = len(room.draw_history)
-                room.last_draw_time = time.time()
-                
-                # Auto-marking logic: Server marks cells matching the drawn number
-                winners = []
-                winning_pattern = None
-                
-                for p in room.players.values():
-                    # Check and mark matching numbers
-                    card_changed = False
-                    for r in range(5):
-                        for c in range(5):
-                            if p.card["matrix"][r][c] == drawn:
-                                p.card["marked"][r][c] = True
-                                card_changed = True
-                                
-                    # If player's card was marked, check if they won
-                    if card_changed:
-                        win_details = check_win(p.card["marked"])
-                        if win_details:
-                            winners.append(p.name)
-                            if not winning_pattern:
-                                winning_pattern = {
-                                    "player_name": p.name,
-                                    "type": win_details["type"],
-                                    "index": win_details["index"],
-                                    "cells": win_details["cells"]
-                                }
-                
-                if winners:
-                    room.state = "game_over"
-                    room.winners = winners
-                    room.winning_pattern = winning_pattern
-                    room.duration = round(time.time() - room.started_at, 1)
-                    
-                    await manager.broadcast_to_room(room.code, {
-                        "event": "winner_detected",
-                        "room": serialize_room(room)
-                    })
-                    break
+        if winners:
+            room.state = "game_over"
+            room.winners = winners
+            room.winning_pattern = winning_pattern
+            room.duration = round(time.time() - room.started_at, 1)
+            
+            # Generate leaderboard
+            sorted_players = sorted(room.players.values(), key=lambda x: x.completed_lines, reverse=True)
+            leaderboard = []
+            for idx, p in enumerate(sorted_players):
+                if idx == 0:
+                    rank = "🥇 1"
+                    status = "Winner"
+                elif idx == 1:
+                    rank = "🥈 2"
+                    status = "Runner-up"
+                elif idx == 2:
+                    rank = "🥉 3"
+                    status = "Third"
                 else:
-                    await manager.broadcast_to_room(room.code, {
-                        "event": "number_drawn",
-                        "number": drawn,
-                        "room": serialize_room(room)
-                    })
+                    rank = str(idx + 1)
+                    status = "-"
+                
+                # Multiple winners tie handling
+                if p.completed_lines >= 5 and idx > 0:
+                    rank = "🥇 1"
+                    status = "Winner"
                     
-        except asyncio.CancelledError:
-            logger.info(f"Draw loop for room {room.code} cancelled.")
-        except Exception as e:
-            logger.exception(f"Error in draw loop for room {room.code}: {e}")
+                leaderboard.append({
+                    "rank": rank,
+                    "name": p.name,
+                    "completed_lines": p.completed_lines,
+                    "status": status
+                })
+            room.leaderboard = leaderboard
+            
+            await manager.broadcast_to_room(room.code, {
+                "event": "winner_detected",
+                "room": serialize_room(room)
+            })
+        else:
+            # Advance turn
+            self.advance_turn(room)
+            
+            await manager.broadcast_to_room(room.code, {
+                "event": "number_drawn",
+                "number": number,
+                "room": serialize_room(room)
+            })
 
 # Global GameManager instance
 game_manager = GameManager()
+

@@ -38,6 +38,9 @@ const dom = {
     cardOwnerBadge: document.getElementById('card-owner-badge'),
     timerText: document.getElementById('timer-text'),
     timerProgress: document.getElementById('timer-progress'),
+    timerLabel: document.getElementById('timer-label'),
+    instructionText: document.getElementById('instruction-text'),
+    drawPanel: document.querySelector('.draw-panel'),
     currentBall: document.getElementById('current-ball'),
     startGameBtn: document.getElementById('start-game-btn'),
     waitingForHost: document.getElementById('waiting-for-host'),
@@ -389,12 +392,37 @@ function updateRoomState(room) {
     renderCalledNumbers(room.draw_history);
     dom.totalDrawsCount.textContent = `${room.draw_history.length} / 75`;
     
-    // State-specific panel renderings
+    // State-specific panel renderings & turn indicator
     if (room.state === 'playing') {
-        startLocalTimer(room.last_draw_time, room.draw_interval);
+        const activePlayer = room.players[room.current_turn_player_id];
+        const isMyTurn = room.current_turn_player_id === myPlayerId;
+        
+        if (isMyTurn) {
+            dom.timerText.textContent = "YOU";
+            dom.timerText.style.fontSize = "1.5rem";
+            dom.timerLabel.textContent = "Your Turn";
+            dom.drawPanel.classList.add("turn-active-indicator");
+            dom.instructionText.textContent = "It is YOUR turn! Click an unmarked number on your card.";
+            dom.timerProgress.style.strokeDashoffset = 0;
+        } else {
+            dom.timerText.textContent = activePlayer ? activePlayer.name.substring(0, 5) : '--';
+            dom.timerText.style.fontSize = "1.2rem";
+            dom.timerLabel.textContent = `${activePlayer ? activePlayer.name : 'Player'}'s Turn`;
+            dom.drawPanel.classList.remove("turn-active-indicator");
+            dom.instructionText.textContent = `Waiting for ${activePlayer ? activePlayer.name : 'player'} to select a number...`;
+            dom.timerProgress.style.strokeDashoffset = TIMER_CIRCUMFERENCE;
+        }
     } else {
-        clearInterval(drawIntervalTimer);
-        resetTimerRing();
+        dom.timerText.textContent = "--";
+        dom.timerText.style.fontSize = "2rem";
+        dom.timerLabel.textContent = "Current Turn";
+        dom.drawPanel.classList.remove("turn-active-indicator");
+        if (room.state === 'lobby') {
+            dom.instructionText.textContent = "Waiting for game to start...";
+        } else {
+            dom.instructionText.textContent = "Game Over! Check the leaderboard.";
+        }
+        dom.timerProgress.style.strokeDashoffset = TIMER_CIRCUMFERENCE;
     }
     
     // Set Current Drawn ball view
@@ -414,6 +442,7 @@ function updateRoomState(room) {
 // 8. RENDER SUB-COMPONENTS
 function renderBingoCard(card) {
     dom.bingoGrid.innerHTML = '';
+    const isMyTurn = currentRoom && currentRoom.state === 'playing' && currentRoom.current_turn_player_id === myPlayerId;
     
     for (let r = 0; r < 5; r++) {
         for (let c = 0; c < 5; c++) {
@@ -433,6 +462,18 @@ function renderBingoCard(card) {
             
             if (isMarked) {
                 cell.classList.add('marked');
+            }
+            
+            if (isMyTurn && !isMarked) {
+                cell.classList.add('clickable');
+                cell.addEventListener('click', () => {
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({
+                            type: 'select_number',
+                            number: val
+                        }));
+                    }
+                });
             }
             
             // Highlight cell if it is part of the winning pattern
@@ -752,11 +793,58 @@ function animateConfetti() {
 }
 
 // 13. WINNER ACTIONS DISPLAY
+function renderLeaderboard(leaderboard) {
+    const tbody = document.getElementById('leaderboard-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    leaderboard.forEach(entry => {
+        const tr = document.createElement('tr');
+        if (entry.name === myPlayerName) {
+            tr.className = 'my-row-highlight';
+        }
+        
+        const tdRank = document.createElement('td');
+        tdRank.textContent = entry.rank;
+        
+        const tdPlayer = document.createElement('td');
+        tdPlayer.textContent = entry.name;
+        if (entry.name === myPlayerName) {
+            tdPlayer.textContent += ' (You)';
+        }
+        
+        const tdLines = document.createElement('td');
+        tdLines.textContent = entry.completed_lines;
+        
+        const tdStatus = document.createElement('td');
+        tdStatus.textContent = entry.status;
+        
+        // Status classes for colors
+        if (entry.status === 'Winner') {
+            tdStatus.className = 'status-winner';
+        } else if (entry.status === 'Runner-up') {
+            tdStatus.className = 'status-runner';
+        } else if (entry.status === 'Third') {
+            tdStatus.className = 'status-third';
+        }
+        
+        tr.appendChild(tdRank);
+        tr.appendChild(tdPlayer);
+        tr.appendChild(tdLines);
+        tr.appendChild(tdStatus);
+        tbody.appendChild(tr);
+    });
+}
+
 function showWinnerOverlay(room) {
     dom.winnerNameDisplay.textContent = room.winners.join(', ');
     dom.statRoomCode.textContent = room.code.replace('ROOM-', '');
     dom.statCalls.textContent = room.total_calls;
     dom.statDuration.textContent = `${room.duration}s`;
+    
+    if (room.leaderboard) {
+        renderLeaderboard(room.leaderboard);
+    }
     
     dom.winnerModal.classList.remove('hidden');
     startConfetti();
@@ -765,3 +853,4 @@ function showWinnerOverlay(room) {
 function logger(message) {
     console.log(`[BINGO] ${message}`);
 }
+

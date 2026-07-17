@@ -1186,3 +1186,102 @@ input[type="text"]:focus {
         grid-template-columns: 1fr;
     }
 }
+
+/* Clickable cells during user's turn */
+.bingo-cell.clickable {
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all var(--transition-fast);
+    border: 1px dashed var(--primary-light);
+}
+
+.bingo-cell.clickable:hover {
+    background: rgba(121, 40, 202, 0.2);
+    border-color: var(--accent);
+    box-shadow: 0 0 12px var(--primary-glow);
+    transform: scale(1.05);
+}
+
+/* Active turn indicator animations */
+.turn-active-indicator {
+    border-color: var(--success) !important;
+    box-shadow: 0 0 20px var(--success-glow) !important;
+    animation: turn-pulse 2s infinite alternate;
+}
+
+@keyframes turn-pulse {
+    from {
+        box-shadow: 0 0 10px var(--success-glow);
+    }
+    to {
+        box-shadow: 0 0 25px rgba(0, 223, 162, 0.6);
+    }
+}
+
+/* Leaderboard */
+.leaderboard-container {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1.2rem;
+    margin-top: 1rem;
+    width: 100%;
+}
+
+.leaderboard-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-light);
+    margin-bottom: 0.8rem;
+    text-align: center;
+    letter-spacing: 0.5px;
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.leaderboard-table th {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.leaderboard-table td {
+    padding: 0.6rem 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: var(--text-color);
+}
+
+.leaderboard-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Highlight roles in leaderboard */
+.leaderboard-table tr td.status-winner {
+    color: var(--success);
+    font-weight: 800;
+    text-shadow: 0 0 8px var(--success-glow);
+}
+
+.leaderboard-table tr td.status-runner {
+    color: var(--primary-light);
+    font-weight: 700;
+}
+
+.leaderboard-table tr td.status-third {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.leaderboard-table tr.my-row-highlight {
+    background: rgba(121, 40, 202, 0.1);
+}
+

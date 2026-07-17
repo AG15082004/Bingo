@@ -121,15 +121,21 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
                 
             if msg_type == "start_game":
                 if player.is_host:
-                    game_manager.start_game(room.code)
+                    await game_manager.start_game(room.code)
                 else:
                     await websocket.send_json({"event": "error", "message": "Only the host can start the game."})
                     
             elif msg_type == "play_again":
                 if player.is_host:
-                    game_manager.start_game(room.code)
+                    await game_manager.start_game(room.code)
                 else:
                     await websocket.send_json({"event": "error", "message": "Only the host can restart the game."})
+                    
+            elif msg_type == "select_number":
+                num = data.get("number")
+                if num is not None:
+                    await game_manager.select_number(room.code, player_id, int(num))
+
                     
             elif msg_type == "send_chat":
                 msg_text = data.get("message", "").strip()

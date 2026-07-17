@@ -95,7 +95,7 @@
                     </div>
                     
                     <div class="card-footer">
-                        <p class="instruction-text">Auto-marking is active. Relax and watch the draws!</p>
+                        <p id="instruction-text" class="instruction-text">Turn-based play. Select a number when it's your turn!</p>
                     </div>
                 </section>
 
@@ -109,10 +109,11 @@
                                     <circle class="timer-ring-bg" stroke="rgba(255,255,255,0.05)" stroke-width="8" fill="transparent" r="52" cx="60" cy="60"/>
                                     <circle id="timer-progress" class="timer-ring-progress" stroke="var(--primary-glow)" stroke-width="8" fill="transparent" r="52" cx="60" cy="60"/>
                                 </svg>
-                                <div id="timer-text" class="timer-text">5</div>
+                                <div id="timer-text" class="timer-text">--</div>
                             </div>
-                            <span class="timer-label">Next Draw</span>
+                            <span id="timer-label" class="timer-label">Current Turn</span>
                         </div>
+
 
                         <!-- Current Ball Drawn -->
                         <div class="ball-container">
@@ -224,6 +225,24 @@
                         <span class="stat-label">Game Duration</span>
                         <span id="stat-duration" class="stat-value">0s</span>
                     </div>
+                </div>
+
+                <!-- Leaderboard Table -->
+                <div class="leaderboard-container">
+                    <h3 class="leaderboard-title">Leaderboard</h3>
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Player</th>
+                                <th>Lines</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body">
+                            <!-- Injected by JavaScript -->
+                        </tbody>
+                    </table>
                 </div>
 
                 <!-- Modal Controls -->

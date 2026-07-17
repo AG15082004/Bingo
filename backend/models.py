@@ -11,6 +11,7 @@ class PlayerModel(BaseModel):
     card: BingoCardModel
     is_host: bool
     is_connected: bool
+    completed_lines: int = 0
 
 class ChatMessageModel(BaseModel):
     name: str
@@ -30,3 +31,7 @@ class GameRoomModel(BaseModel):
     draw_interval: int
     total_calls: int = 0
     duration: float = 0.0
+    turn_order: List[str] = []
+    current_turn_player_id: Optional[str] = None
+    leaderboard: List[Dict] = []
+
