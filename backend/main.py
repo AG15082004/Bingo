@@ -156,7 +156,7 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
                     
             elif msg_type == "send_reaction":
                 emoji = data.get("emoji", "").strip()
-                if emoji in ["👍", "😂", "🔥", "🎉"]:
+                if emoji in ["👍", "😂", "🔥", "🎉", "👏", "💖", "😎", "👑", "😮", "😢"]:
                     await manager.broadcast_to_room(room.code, {
                         "event": "reaction",
                         "player_name": player.name,

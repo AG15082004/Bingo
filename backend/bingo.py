@@ -13,44 +13,20 @@ CARD_RANGES = {
 
 def generate_card() -> Tuple[List[List[Union[int, str]]], List[List[bool]]]:
     """
-    Generates a randomized Bingo card conforming to B-I-N-G-O column ranges.
+    Generates a randomized Bingo card containing exactly 25 unique numbers ranging from 1 to 25.
     Returns:
         matrix: 5x5 list of numbers
         marked: 5x5 list of booleans (False everywhere initially)
     """
-    B_nums = random.sample(range(CARD_RANGES["B"][0], CARD_RANGES["B"][1] + 1), 5)
-    I_nums = random.sample(range(CARD_RANGES["I"][0], CARD_RANGES["I"][1] + 1), 5)
-    N_nums = random.sample(range(CARD_RANGES["N"][0], CARD_RANGES["N"][1] + 1), 5) # 5 numbers for N
-    G_nums = random.sample(range(CARD_RANGES["G"][0], CARD_RANGES["G"][1] + 1), 5)
-    O_nums = random.sample(range(CARD_RANGES["O"][0], CARD_RANGES["O"][1] + 1), 5)
+    nums = list(range(1, 26))
+    random.shuffle(nums)
 
     matrix: List[List[Union[int, str]]] = []
     marked: List[List[bool]] = []
 
     for r in range(5):
-        row_vals: List[Union[int, str]] = []
-        row_marks: List[bool] = []
-
-        # Column 0: B
-        row_vals.append(B_nums[r])
-        row_marks.append(False)
-
-        # Column 1: I
-        row_vals.append(I_nums[r])
-        row_marks.append(False)
-
-        # Column 2: N
-        row_vals.append(N_nums[r])
-        row_marks.append(False)
-
-        # Column 3: G
-        row_vals.append(G_nums[r])
-        row_marks.append(False)
-
-        # Column 4: O
-        row_vals.append(O_nums[r])
-        row_marks.append(False)
-
+        row_vals: List[Union[int, str]] = [nums[r * 5 + c] for c in range(5)]
+        row_marks: List[bool] = [False] * 5
         matrix.append(row_vals)
         marked.append(row_marks)
 

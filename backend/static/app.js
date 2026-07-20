@@ -53,6 +53,7 @@ const dom = {
     chatInput: document.getElementById('chat-input'),
     sendChatBtn: document.getElementById('send-chat-btn'),
     emojiButtons: document.querySelectorAll('.emoji-btn'),
+    centerChatOverlay: document.getElementById('center-chat-overlay'),
     // Overlays & Modals
     reconnectOverlay: document.getElementById('reconnect-overlay'),
     winnerModal: document.getElementById('winner-modal'),
@@ -329,6 +330,7 @@ function handleServerEvent(data) {
             
         case 'chat_message':
             appendChatMessage(data.chat);
+            spawnCenterChatMessage(data.chat);
             break;
             
         case 'reaction':
@@ -390,7 +392,7 @@ function updateRoomState(room) {
     
     // Draw List History & Counter
     renderCalledNumbers(room.draw_history);
-    dom.totalDrawsCount.textContent = `${room.draw_history.length} / 75`;
+    dom.totalDrawsCount.textContent = `${room.draw_history.length} / 25`;
     
     // State-specific panel renderings & turn indicator
     if (room.state === 'playing') {
@@ -609,11 +611,11 @@ function resetTimerRing() {
 }
 
 function getLetterForNumber(num) {
-    if (num >= 1 && num <= 10) return 'B';
-    if (num >= 11 && num <= 20) return 'I';
-    if (num >= 21 && num <= 30) return 'N';
-    if (num >= 31 && num <= 40) return 'G';
-    if (num >= 41 && num <= 50) return 'O';
+    if (num >= 1 && num <= 5) return 'B';
+    if (num >= 6 && num <= 10) return 'I';
+    if (num >= 11 && num <= 15) return 'N';
+    if (num >= 16 && num <= 20) return 'G';
+    if (num >= 21 && num <= 25) return 'O';
     return 'B'; // Fallback
 }
 
@@ -702,22 +704,60 @@ function sendEmojiReaction(emoji) {
 // Floating reaction on center panel
 function spawnFloatingReaction(name, emoji) {
     const container = dom.floatingReactionContainer;
-    const reaction = document.createElement('div');
-    reaction.className = 'floating-reaction';
-    reaction.textContent = emoji;
+    if (!container) return;
     
-    // Random horizontal position inside center container
-    const width = container.offsetWidth;
-    const xPos = Math.random() * (width - 40);
-    reaction.style.left = `${xPos}px`;
+    const reaction = document.createElement('div');
+    reaction.className = 'floating-reaction-pill animate-reaction-float';
+    
+    const emojiSpan = document.createElement('span');
+    emojiSpan.className = 'reaction-emoji';
+    emojiSpan.textContent = emoji;
+    
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'reaction-name';
+    nameSpan.textContent = name;
+    
+    reaction.appendChild(emojiSpan);
+    reaction.appendChild(nameSpan);
+    
+    const width = container.offsetWidth || 300;
+    const xPos = Math.random() * (width - 100);
+    reaction.style.left = `${Math.max(10, xPos)}px`;
     reaction.style.bottom = `10px`;
     
     container.appendChild(reaction);
     
-    // Self clean
     setTimeout(() => {
         reaction.remove();
-    }, 2000);
+    }, 2500);
+}
+
+// Center panel chat notification popups during active match
+function spawnCenterChatMessage(chat) {
+    if (!currentRoom || currentRoom.state !== 'playing') return;
+    if (!dom.centerChatOverlay) return;
+    
+    const toast = document.createElement('div');
+    toast.className = 'center-chat-toast animate-chat-toast';
+    
+    const sender = document.createElement('span');
+    sender.className = 'toast-sender';
+    sender.textContent = chat.name;
+    
+    const msg = document.createElement('span');
+    msg.className = 'toast-text';
+    msg.textContent = chat.message;
+    
+    toast.appendChild(sender);
+    toast.appendChild(msg);
+    dom.centerChatOverlay.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('toast-fade-out');
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 3500);
 }
 
 // 12. CANVAS CONFETTI PARTICLE ANIMATOR
