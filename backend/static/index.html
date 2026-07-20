@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,10 +8,12 @@
     <!-- Modern Premium Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <!-- Link to Stylesheet -->
     <link rel="stylesheet" href="/static/style.css?v=2.0">
 </head>
+
 <body>
     <div id="app-container">
         <!-- 1. LOBBY VIEW (HOME SCREEN) -->
@@ -25,7 +28,8 @@
             <section class="card-glass lobby-card animate-slide-up">
                 <div class="form-group">
                     <label for="username-input">Enter Your Name</label>
-                    <input type="text" id="username-input" maxlength="15" placeholder="e.g., CaptainBingo" autocomplete="off">
+                    <input type="text" id="username-input" maxlength="15" placeholder="e.g., CaptainBingo"
+                        autocomplete="off">
                 </div>
 
                 <div class="divider-text"><span>Host a Game</span></div>
@@ -35,14 +39,15 @@
 
                 <div class="divider-text"><span>Or Join Existing</span></div>
                 <div class="join-group">
-                    <input type="text" id="room-code-input" placeholder="Enter Room Code (e.g., AB12CD)" autocomplete="off">
+                    <input type="text" id="room-code-input" placeholder="Enter Room Code (e.g., AB12CD)"
+                        autocomplete="off">
                     <button id="join-room-btn" class="btn btn-secondary">Join</button>
                 </div>
                 <p id="lobby-error" class="error-text hidden"></p>
             </section>
-            
+
             <footer class="lobby-footer">
-                <p>RAM only persistence • Pure HTML/CSS/JS • Real-time WebSockets</p>
+                <p>Developed by "Gilbrit" - Data Engineer</p>
             </footer>
         </main>
 
@@ -58,7 +63,10 @@
                 <div class="header-center">
                     <h2 id="room-code-display" class="room-code">ROOM-AB12CD</h2>
                     <button id="copy-link-btn" class="btn btn-sm btn-icon-only tooltip" title="Copy Invitation Link">
-                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
                         <span class="tooltiptext" id="copy-tooltip">Copy Link</span>
                     </button>
                 </div>
@@ -71,14 +79,14 @@
 
             <!-- Main Layout Grid -->
             <div class="game-layout">
-                
+
                 <!-- LEFT PANEL: Player Card -->
                 <section class="layout-panel panel-left card-glass">
                     <div class="panel-header">
                         <h3>Your Bingo Card</h3>
                         <span id="card-owner-badge" class="badge badge-primary">Player</span>
                     </div>
-                    
+
                     <div class="card-container">
                         <!-- Header letters B-I-N-G-O -->
                         <div class="bingo-header">
@@ -93,9 +101,10 @@
                             <!-- Injected by JavaScript -->
                         </div>
                     </div>
-                    
+
                     <div class="card-footer">
-                        <p id="instruction-text" class="instruction-text">Turn-based play. Select a number when it's your turn!</p>
+                        <p id="instruction-text" class="instruction-text">Turn-based play. Select a number when it's
+                            your turn!</p>
                     </div>
                 </section>
 
@@ -106,8 +115,10 @@
                         <div class="timer-wrapper">
                             <div class="timer-ring-container">
                                 <svg class="timer-ring" width="120" height="120">
-                                    <circle class="timer-ring-bg" stroke="rgba(255,255,255,0.05)" stroke-width="8" fill="transparent" r="52" cx="60" cy="60"/>
-                                    <circle id="timer-progress" class="timer-ring-progress" stroke="var(--primary-glow)" stroke-width="8" fill="transparent" r="52" cx="60" cy="60"/>
+                                    <circle class="timer-ring-bg" stroke="rgba(255,255,255,0.05)" stroke-width="8"
+                                        fill="transparent" r="52" cx="60" cy="60" />
+                                    <circle id="timer-progress" class="timer-ring-progress" stroke="var(--primary-glow)"
+                                        stroke-width="8" fill="transparent" r="52" cx="60" cy="60" />
                                 </svg>
                                 <div id="timer-text" class="timer-text">--</div>
                             </div>
@@ -133,10 +144,10 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Floating emoji reactions area -->
                     <div id="floating-reaction-container"></div>
-                    
+
                     <!-- Center Chat Overlay for active match -->
                     <div id="center-chat-overlay" class="center-chat-overlay"></div>
                 </section>
@@ -172,7 +183,7 @@
                         <div id="chat-messages" class="chat-messages">
                             <!-- Injected by JavaScript -->
                         </div>
-                        
+
                         <!-- Emoji Reactions Panel -->
                         <div class="emoji-panel">
                             <button class="emoji-btn" data-emoji="👍">👍</button>
@@ -186,15 +197,16 @@
                             <button class="emoji-btn" data-emoji="😮">😮</button>
                             <button class="emoji-btn" data-emoji="😢">😢</button>
                         </div>
-                        
+
                         <!-- Chat Input Group -->
                         <div class="chat-input-group">
-                            <input type="text" id="chat-input" placeholder="Type a message..." maxlength="100" autocomplete="off">
+                            <input type="text" id="chat-input" placeholder="Type a message..." maxlength="100"
+                                autocomplete="off">
                             <button id="send-chat-btn" class="btn btn-primary btn-sm">Send</button>
                         </div>
                     </div>
                 </section>
-                
+
             </div>
         </main>
 
@@ -212,11 +224,11 @@
         <div id="winner-modal" class="modal-overlay hidden">
             <div class="modal-card card-glass animate-scale-in">
                 <h1 class="winner-title">🎉 BINGO! 🎉</h1>
-                
+
                 <div class="winner-trophy">
                     🏆
                 </div>
-                
+
                 <h2 id="winner-name-display" class="winner-name">Player Name</h2>
                 <p class="winner-subtitle">Winner Verified by Server</p>
 
@@ -269,11 +281,12 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Canvas for Confetti animation -->
     <canvas id="confetti-canvas"></canvas>
 
     <!-- Vanilla Javascript Logic -->
     <script src="/static/app.js?v=2.0"></script>
 </body>
+
 </html>
